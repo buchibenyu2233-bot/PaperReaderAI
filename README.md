@@ -1,8 +1,23 @@
-# PaperReader AI
-GitHub Pages 前端演示版。
+# PaperReader AI V2（GitHub Pages 版）
 
-上传 PDF、翻译显示/隐藏、四色高亮、AI助手、大纲、脑图界面均已包含。
+## 部署
+将 `index.html`、`style.css`、`app.js`、`.nojekyll`、`README.md` 直接上传到仓库根目录，提交后 GitHub Pages 使用 `main` / `/(root)`。
 
-注意：GitHub Pages 是静态托管，不能把 AI API Key 放进前端。真正 AI 翻译需要后端 API。
+## 已实现
+- 本地 PDF 文件预览（依赖浏览器 PDF 预览能力）
+- 通过 PDF.js 提取有文本层的 PDF 内容（首次加载需要网络）
+- 英文原文 + 可编辑中文译文，**一键显示/隐藏中文**
+- 四色段落标记、本地存储和 JSON 导出
+- 规则提取的基础大纲和树形导图
+- AI 助手界面和明确的未连接后端提示
+- 手机响应式布局
 
-Pages 设置：Settings → Pages → Deploy from a branch → main → /(root) → Save。
+## 尚未实现
+- 真正自动的专业英中 AI 翻译、智能问答、AI 摘要与 AI 思维导图（需要安全后端）
+- 扫描 PDF OCR
+- 直接在 PDF 页面文字上高亮（当前是提取段落的高亮）
+- 云端同步与多文献资料库
+
+**安全：** 不要在 GitHub Pages 前端代码中放任何 AI API 密钥。
+
+- 中英对照支持上下/左右布局一键切换，中文可独立隐藏，布局偏好本地保存。
