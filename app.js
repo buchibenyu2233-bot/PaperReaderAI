@@ -21,9 +21,9 @@ $('addBtn').onclick=()=>{const en=prompt('输入英文原文：');if(en?.trim())
 $('copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(data.map(p=>p.en).join('\n\n'));alert('已复制英文原文')}catch(e){alert('复制失败，请检查浏览器权限')}};
 $('clearBtn').onclick=()=>{if(!confirm('清除当前 PDF 和段落吗？'))return;loadingToken++;if(pdfDoc)pdfDoc.destroy();pdfDoc=null;currentFile=null;pdfBytes=null;pageElements=[];pageMeta=[];pageBlocks=[];renderTasks.clear();renderedPageNumbers.clear();pageRenderEpoch++;if(observer)observer.disconnect();$('pdfPages').innerHTML='';$('file').value='';$('fileName').textContent='尚未选择 PDF';$('pageIndicator').textContent='第 0 / 共 0 页';data=[];save();render()};
 // PDF-only repair: local pdf.js, fail loudly if assets are missing.
-const PDFJS_VERSION='6.4.299';
-const PDFJS_MAIN='./vendor/pdf.mjs';
-const PDFJS_WORKER='./vendor/pdf.worker.mjs';
+const PDFJS_VERSION='3.11.174';
+const PDFJS_MAIN='./vendor/pdf.js';
+const PDFJS_WORKER='./vendor/pdf.worker.js';
 let pdfWorkerOK=false,pdfWorkerMessage='尚未验证',pdfDebugError='',renderedPageNumbers=new Set(),pageRenderEpoch=0,scrollTimer=0,pdfLibrary=null;
 function pdfDebug(){const out=$('pdfDebugText');if(!out)return;out.textContent=[
   'pdf.js 预期版本：'+PDFJS_VERSION,
@@ -37,17 +37,23 @@ function pdfDebug(){const out=$('pdfDebugText');if(!out)return;out.textContent=[
   '完整错误信息：'+(pdfDebugError||'无')].join('\n')}
 function pdfFailure(where,err){pdfDebugError=where+'\n'+(err?.stack||String(err));console.error('[PDF Reader]',where,err);pdfDebug();$('pdfDebugPanel').open=true;status.textContent='❌ PDF 阅读器错误：'+(err?.message||err)+'；请展开 PDF 调试面板查看详情。'}
 async function loadPdfjs(){
-  // Only same-origin, bundled ES modules. Never use a browser PDF preview fallback.
+  // pdfjs-dist 3.11.174 legacy/build is a classic UMD script, NOT an ES module.
   if(!pdfLibrary){
-    try{pdfLibrary=await import(PDFJS_MAIN)}
-    catch(err){throw new Error('本地 PDF.js 模块导入失败：'+PDFJS_MAIN+'；'+(err?.message||err),{cause:err})}
+    if(!window.pdfjsLib){
+      await new Promise((resolve,reject)=>{
+        const script=document.createElement('script');
+        script.src=PDFJS_MAIN;
+        script.onload=resolve;
+        script.onerror=()=>reject(new Error('本地 legacy PDF.js 主文件加载失败：'+PDFJS_MAIN));
+        document.head.appendChild(script);
+      });
+    }
+    pdfLibrary=window.pdfjsLib;
+    if(!pdfLibrary)throw new Error('本地 PDF.js 脚本已加载，但 window.pdfjsLib 不存在：'+PDFJS_MAIN);
   }
   if(pdfLibrary.version!==PDFJS_VERSION)throw new Error('PDF.js 版本不匹配：实际 '+pdfLibrary.version+'，预期 '+PDFJS_VERSION);
   pdfLibrary.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;
-  // PDF.js owns the worker handshake. The stock pdf.worker.mjs does not
-  // emit the custom {action:'ready',source:'worker'} message previously awaited.
-  // Let getDocument() initialize its worker using GlobalWorkerOptions.workerSrc.
-  pdfWorkerMessage='交由 PDF.js 初始化；等待 PDF 文档加载';
+  pdfWorkerMessage='由 PDF.js 3.11 legacy 管理 Worker';
   pdfDebug();return pdfLibrary;
 }
 $('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.type!=='application/pdf'&&!f.name.toLowerCase().endsWith('.pdf')){alert('请选择 PDF 文件');return}currentFile=f;$('fileName').textContent=f.name;await openPdf(f)};
@@ -162,7 +168,7 @@ function buildPageParagraphs(raw,pageNo,meta){const ordered=columnOrder(extractL
  let prev=null;for(const l of lines){const t=l.text;if((l.y<meta.height*.07||l.y>meta.height*.94)&&(/\bdoi\b|©|copyright|journal|volume|www\.|^\d{1,3}$|^page\s*\d+/i.test(t)||t.length<55))continue;if(/^(received|accepted|published|corresponding author|affiliation|department of|school of|institute of|university of|email\s*:)/i.test(t))continue;
  const col=ordered.label(l),prevCol=prev?ordered.label(prev):col;const gap=prev?l.y-prev.y:0;const sameCol=prev&&col===prevCol;const usual=prev?Math.max(prev.h,l.h):l.h;const indentation=prev&&l.x-prev.x>usual*1.6;const titleFont=l.h>bodySize*1.25;const prevTitle=prev&&prev.h>bodySize*1.25;const newBlock=!prev||!sameCol||gap>usual*1.85||gap<-.2||indentation||titleFont!==prevTitle||/^(figure|fig\.?|table|scheme|references|bibliography)/i.test(t);
  if(newBlock)flush();group.push(l);prev=l}flush();return out.filter(p=>p.en.length>3)}
-$('extractBtn').onclick=async()=>{if(!pdfDoc){alert('请先导入 PDF');return}const token=loadingToken;status.textContent='正在按坐标分析论文段落…';try{const paragraphs=[];for(let i=1;i<=pdfDoc.numPages;i++){if(token!==loadingToken)return;status.textContent=`正在分析第 ${i} / ${pdfDoc.numPages} 页…`;const page=await pdfDoc.getPage(i);const content=await page.getTextContent();paragraphs.push(...buildPageParagraphs(content,i,pageMeta[i-1]));await new Promise(r=>setTimeout(r,0))}if(token!==loadingToken)return;data=paragraphs;activeParagraph=-1;save();render();updateOverlays();status.textContent=`提取完成：${pdfDoc.numPages} 页，共 ${data.length} 段。分类统计见右侧。可勾选“显示段落框”核对识别效果。`;}catch(err){status.textContent='提取失败：'+err.message}};
+$('extractBtn').onclick=async()=>{if(!pdfDoc){alert('请先导入 PDF');return}const token=loadingToken;status.textContent='正在按坐标分析论文段落…';try{const paragraphs=[];for(let i=1;i<=pdfDoc.numPages;i++){if(token!==loadingToken)return;status.textContent=`正在分析第 ${i} / ${pdfDoc.numPages} 页…`;const page=await pdfDoc.getPage(i);const content=await page.getTextContent();paragraphs.push(...buildPageParagraphs(content,i,pageMeta[i-1]));await new Promise(r=>setTimeout(r,0))}if(token!==loadingToken)return;data=paragraphs;activeParagraph=-1;save();render();updateOverlays();status.textContent=`提取完成：${pdfDoc.numPages} 页，共 ${data.length} 段。分类统计见右侧。可勾选“显示段落框”核对识别效果。`;}catch(err){pdfDebugError='提取论文文本失败\npdf.js 版本：'+(pdfLibrary?.version||'未加载')+'\n'+(err?.stack||String(err));pdfDebug();$('pdfDebugPanel').open=true;status.textContent='提取失败（pdf.js '+(pdfLibrary?.version||'未知')+'）：'+(err?.message||String(err))+'；完整错误见 PDF 调试面板。';console.error('[PDF Reader] text extraction',err)}};
 function sentences(){return data.map(x=>x.en).filter(Boolean)}
 function summary(){const ss=sentences();if(!ss.length)return"请先导入并提取论文文本，或载入示例。";return"文献文本概览（规则提取，非 AI 总结）：\n"+"段落数："+ss.length+"\n\n代表性段落：\n"+ss.slice(0,6).map((x,i)=>`${i+1}. ${x.slice(0,220)}`).join("\n")}
 $("outlineBtn").onclick=()=>{$("outline").textContent=summary()};
