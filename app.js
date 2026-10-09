@@ -1,4 +1,5 @@
 const $=id=>document.getElementById(id);
+const status=$('pdfStatus')||$('status')||{set textContent(value){console.info('[PDF Reader]',value)}};
 let data=[],showZh=true,currentFile=null,pdfDoc=null,pdfBytes=null,renderScale=1,baseWidth=600,observer=null,renderTasks=new Map(),pageElements=[],pageMeta=[],pageBlocks=[],activeParagraph=-1,loadingToken=0;
 let bilingualLayout=localStorage.getItem('paperreader-layout')==='side'?'side':'stack';
 const storageKey='paperreader-v2-notes';
@@ -43,20 +44,10 @@ async function loadPdfjs(){
   }
   if(pdfLibrary.version!==PDFJS_VERSION)throw new Error('PDF.js 版本不匹配：实际 '+pdfLibrary.version+'，预期 '+PDFJS_VERSION);
   pdfLibrary.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;
-  // Verify an actual module Worker starts and runs; HTTP 200 alone is insufficient.
-  if(!pdfWorkerOK){
-    const worker=await new Promise((resolve,reject)=>{
-      let w,done=false;
-      const timeout=setTimeout(()=>finish(new Error('Worker 启动超时（8 秒）')),8000);
-      function finish(err){if(done)return;done=true;clearTimeout(timeout);if(err){w?.terminate();reject(err)}else resolve(w)}
-      try{
-        w=new Worker(PDFJS_WORKER,{type:'module'});
-        w.onmessage=e=>{if(e.data?.action==='ready'&&e.data?.source==='worker'){pdfWorkerMessage='模块 Worker ready 握手成功';finish()}};
-        w.onerror=e=>finish(new Error('Worker 模块执行失败：'+(e.message||'未知错误')));
-      }catch(err){finish(err)}
-    });
-    worker.terminate();pdfWorkerOK=true;
-  }
+  // PDF.js owns the worker handshake. The stock pdf.worker.mjs does not
+  // emit the custom {action:'ready',source:'worker'} message previously awaited.
+  // Let getDocument() initialize its worker using GlobalWorkerOptions.workerSrc.
+  pdfWorkerMessage='交由 PDF.js 初始化；等待 PDF 文档加载';
   pdfDebug();return pdfLibrary;
 }
 $('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.type!=='application/pdf'&&!f.name.toLowerCase().endsWith('.pdf')){alert('请选择 PDF 文件');return}currentFile=f;$('fileName').textContent=f.name;await openPdf(f)};
@@ -68,7 +59,7 @@ async function openPdf(f){
   const lib=await loadPdfjs();pdfBytes=new Uint8Array(await f.arrayBuffer());
   const doc=await lib.getDocument({data:pdfBytes.slice(),disableAutoFetch:true}).promise;
   if(token!==loadingToken){await doc.destroy();return}
-  pdfDoc=doc;renderScale=1;pageBlocks=[];
+  pdfDoc=doc;pdfWorkerOK=true;pdfWorkerMessage='PDF.js 已成功加载文档（Worker 由 PDF.js 管理）';renderScale=1;pageBlocks=[];
   for(let i=1;i<=doc.numPages;i++){
     const pg=await doc.getPage(i),v=pg.getViewport({scale:1});
     pageMeta.push({width:v.width,height:v.height});
