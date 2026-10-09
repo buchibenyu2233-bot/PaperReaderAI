@@ -1,23 +1,7 @@
-# PaperReader AI V2（GitHub Pages 版）
+# PaperReader AI V3 — PDF 阅读与段落识别修复
 
-## 部署
-将 `index.html`、`style.css`、`app.js`、`.nojekyll`、`README.md` 直接上传到仓库根目录，提交后 GitHub Pages 使用 `main` / `/(root)`。
+修复范围：PDF.js Canvas 多页滚动、宽度自适应、放大缩小、页码跳转、IntersectionObserver 懒渲染、透明可选中文字层；按坐标合并行与段落、双栏顺序、段落分类与调试框、段落点击定位。其他功能沿用 V2。
 
-## 已实现
-- 本地 PDF 文件预览（依赖浏览器 PDF 预览能力）
-- 通过 PDF.js 提取有文本层的 PDF 内容（首次加载需要网络）
-- 英文原文 + 可编辑中文译文，**一键显示/隐藏中文**
-- 四色段落标记、本地存储和 JSON 导出
-- 规则提取的基础大纲和树形导图
-- AI 助手界面和明确的未连接后端提示
-- 手机响应式布局
+部署：将 index.html、style.css、app.js、README.md 上传至 GitHub Pages 仓库根目录并覆盖旧文件（不要直接上传 ZIP）。
 
-## 尚未实现
-- 真正自动的专业英中 AI 翻译、智能问答、AI 摘要与 AI 思维导图（需要安全后端）
-- 扫描 PDF OCR
-- 直接在 PDF 页面文字上高亮（当前是提取段落的高亮）
-- 云端同步与多文献资料库
-
-**安全：** 不要在 GitHub Pages 前端代码中放任何 AI API 密钥。
-
-- 中英对照支持上下/左右布局一键切换，中文可独立隐藏，布局偏好本地保存。
+PDF.js 3.11.174 当前通过 cdnjs 加载（首次联网需要能访问该 CDN）；不支持扫描 PDF OCR。双栏、公式、跨栏、脚注及复杂排版仍可能误判。段落数依论文而异，未提供测试 PDF，无法给出实际数目。缩放按钮为 PDF 阅读区域内缩放，Safari 系统双指手势行为由浏览器控制。
