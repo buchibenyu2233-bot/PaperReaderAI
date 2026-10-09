@@ -17,3 +17,6 @@
 .pdf-debug{margin-top:12px;border:1px solid #cbd5e1;border-radius:8px;padding:9px;background:#f8fafc}
 .pdf-debug summary{cursor:pointer;font-weight:600}
 .pdf-debug pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.5}
+
+/* Stage 1 AI settings */
+.api-field{display:block;margin:12px 0;font-weight:600}.api-field input{display:block;box-sizing:border-box;width:100%;max-width:680px;margin-top:6px;padding:12px;border:1px solid #cbd5e1;border-radius:9px;font-size:16px}.api-result{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f5f9;padding:12px;border-radius:9px;font-size:13px}.controls button:disabled,button:disabled{opacity:.55;cursor:wait}
